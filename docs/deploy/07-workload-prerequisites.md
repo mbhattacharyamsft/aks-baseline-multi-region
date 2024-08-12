@@ -1,14 +1,14 @@
-# Workload Prerequisites
+# Prepare for the workload
 
-Now that the [AKS clusters](./06-aks-cluster.md) have been deployed and enrolled in GitOps management as part of the GitHub workflow deployment, follow these steps to import the TLS certificates that the Ingress Controller will serve for Application Gateway to connect to your web app.
+Now that the [AKS clusters](./06-aks-cluster.md) have been deployed and enrolled in GitOps management as part of the GitHub workflow deployment, you can prepare for the workload to be deployed. This process includes two main parts: first, you import the TLS certificates for the connection between Application Gateway and the ingress controller; and second, you verify that the organization's policies have been successfully assigned.
 
 ## Steps
 
-## Import the wildcard certificate for the AKS Ingress Controller to Azure Key Vault
+### Import the wildcard certificate for the AKS ingress controller to Azure Key Vault
 
-> :book: Contoso Bicycle procured a CA certificate, a standard one, to be used with the AKS Ingress Controller. This one is not EV, as it will not be user facing.
+> :book: Contoso Bicycle procured a standard CA-issued TLS certificate to be used with by AKS Ingress Controller. This certificate isn't EV because it won't be user facing.
 
-1. Obtain the Azure Key Vault details and give the current user permissions to import certificates.
+1. Retrieve the Azure Key Vault details and give the current user permissions to import certificates.
 
    > :book: Finally the app team decides to use a wildcard certificate of `*.aks-ingress.contoso.com` for the ingress controller. They use Azure Key Vault to import and manage the lifecycle of this certificate.
 
@@ -22,38 +22,38 @@ Now that the [AKS clusters](./06-aks-cluster.md) have been deployed and enrolled
    az keyvault set-policy --certificate-permissions import list get --object-id $(az ad signed-in-user show --query 'id' -o tsv) -n $KEYVAULT_NAME_BU0001A0042_04
    ```
 
-1. Import the AKS Ingress Controller's Wildcard Certificate for `*.aks-ingress.contoso.com`.
+1. Import the AKS Ingress Controller's wildcard certificate for `*.aks-ingress.contoso.com`.
 
-   :warning: If you already have access to an appropriate certificate, or can procure one from your organization, consider using it for this step. For more information, take a look at the [import certificate tutorial using Azure Key Vault](https://learn.microsoft.com/azure/key-vault/certificates/tutorial-import-certificate#import-a-certificate-to-key-vault).
+   :warning: If you already have access to an appropriate certificate, or can procure one from your organization, consider using it in this step. For more information, see [import certificate tutorial using Azure Key Vault](https://learn.microsoft.com/azure/key-vault/certificates/tutorial-import-certificate#import-a-certificate-to-key-vault).
 
-   :warning: Do not use the certificate created by this script for actual deployments. The use of self-signed certificates are provided for ease of illustration purposes only. For your cluster, use your organization's requirements for procurement and lifetime management of TLS certificates, *even for development purposes*.
+   :warning: Do not use the certificate created by this script for production deployments. Instructions to create self-signed certificates are provided for ease of illustration purposes only. For your cluster, follow your organization's requirements for procurement and lifetime management of TLS certificates, *even for development purposes*.
 
    ```bash
    az keyvault certificate import -f traefik-ingress-internal-aks-ingress-contoso-com-tls.pem -n traefik-ingress-internal-aks-ingress-contoso-com-tls --vault-name $KEYVAULT_NAME_BU0001A0042_03
    az keyvault certificate import -f traefik-ingress-internal-aks-ingress-contoso-com-tls.pem -n traefik-ingress-internal-aks-ingress-contoso-com-tls --vault-name $KEYVAULT_NAME_BU0001A0042_04
    ```
 
-1. Remove Azure Key Vault import certificates permissions for current user.
+1. Remove the Azure Key Vault import certificates permissions for the current user.
 
-   > The Azure Key Vault policy for your user was a temporary policy to allow you to upload the certificate for this walkthrough. In actual deployments, you would manage these access policies via your ARM templates using [Azure RBAC for Key Vault data plane](https://learn.microsoft.com/azure/key-vault/general/secure-your-key-vault#data-plane-and-access-policies).
+   > An Azure Key Vault policy was temporarily created to allow you to upload the certificate for this walkthrough. In actual deployments, you would manage these access policies through your infrastructure as code using [Azure RBAC for Key Vault data plane](https://learn.microsoft.com/azure/key-vault/general/secure-your-key-vault#data-plane-and-access-policies).
 
    ```bash
    az keyvault delete-policy --object-id $(az ad signed-in-user show --query 'id' -o tsv) -n $KEYVAULT_NAME_BU0001A0042_03
    az keyvault delete-policy --object-id $(az ad signed-in-user show --query 'id' -o tsv) -n $KEYVAULT_NAME_BU0001A0042_04
    ```
 
-## Check Azure Policies are in place
+### Check policies are in place
 
-> :book: The app team wants to apply Azure Policy over their cluster like they do other Azure resources. Their pods will be covered using the [Azure Policy add-on for AKS](https://learn.microsoft.com/azure/aks/use-pod-security-on-azure-policy). Some of these audits might end up in the denial of a specific Kubernetes API request operation to ensure the pod's specification is compliance with the organization's security best practices. Moreover [data is generated by Azure Policy](https://learn.microsoft.com/azure/governance/policy/how-to/get-compliance-data) to assist the app team in the process of assessing the current compliance state of the AKS cluster. The app team is going to assign at the resource group level the [Azure Policy for Kubernetes built-in restricted initiative](https://learn.microsoft.com/azure/aks/use-pod-security-on-azure-policy#built-in-policy-initiatives) as well as five more [built-in individual Azure policies](https://learn.microsoft.com/azure/aks/policy-samples#microsoftcontainerservice) that enforce that pods perform resource requests, define trusted container registries, mandate that root filesystem access is read-only, enforce the usage of internal load balancers, and enforce HTTPS-only Kubernetes Ingress objects.
+> :book: The app team wants to apply Azure Policy over their cluster, just like they do with other Azure resources. Their pods will be covered using the [Azure Policy add-on for AKS](https://learn.microsoft.com/azure/aks/use-pod-security-on-azure-policy). Some of these audits might require the denial of specific Kubernetes API requests to ensure the pod's specification is compliance with the organization's security best practices. Moreover [data is generated by Azure Policy](https://learn.microsoft.com/azure/governance/policy/how-to/get-compliance-data) to assist the app team in the process of assessing the current compliance state of the AKS cluster. The app team is going to assign the [Azure Policy for Kubernetes built-in restricted initiative](https://learn.microsoft.com/azure/aks/use-pod-security-on-azure-policy#built-in-policy-initiatives) at the resource group level. They will also assign five more [built-in individual Azure policies](https://learn.microsoft.com/azure/aks/policy-samples#microsoftcontainerservice) that enforce that pods perform resource requests, define trusted container registries, mandate that root filesystem access is read-only, enforce the usage of internal load balancers, and enforce that Kubernetes Ingress objects only support HTTPS.
 
-1. Confirm policies are applied to the AKS cluster
+1. Confirm policies are applied to the AKS cluster.
 
    ```bash
    kubectl get constrainttemplate --context $AKS_CLUSTER_NAME_BU0001A0042_03_AKS_MRB
    kubectl get constrainttemplate --context $AKS_CLUSTER_NAME_BU0001A0042_04_AKS_MRB
    ```
 
-   A similar output as the one showed below should be returned
+   You should see output similar to the following example:
 
    ```output
    NAME                                     AGE
@@ -66,4 +66,4 @@ Now that the [AKS clusters](./06-aks-cluster.md) have been deployed and enrolled
 
 ### Next step
 
-:arrow_forward: [Configure AKS Ingress Controller with Azure Key Vault integration](./08-secret-managment-and-ingress-controller.md)
+:arrow_forward: [Configure AKS ingress controller with Azure Key Vault integration](./08-secret-managment-and-ingress-controller.md)

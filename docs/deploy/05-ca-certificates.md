@@ -1,15 +1,15 @@
-# Generate your Client-Facing and AKS Ingress Controller TLS Certificates
+# Generate your client-facing and AKS ingress controller TLS certificates
 
-Now that the [hub-spoke network is provisioned](./04-networking.md), you can follow these steps to create the TLS certificates for each region that Azure Application Gateway will serve for clients connecting to your web app as well as the AKS ingress controller.
+Now that the [hub-spoke network is provisioned](./04-networking.md), you can create TLS certificates that your solution needs. You'll create multiple TLS certificates: one for each region that Azure Front Door routes to an Application Gateway instance, for clients connecting to your web app; and another for the AKS ingress controller.
 
 ## Expected results
 
-These steps will result the certificates needed for Azure Application Gateway and AKS ingress controller.
+The following steps will create the certificates needed for Azure Application Gateway and AKS ingress controller.
 
-| Object                                     | Purpose |
-|:------------------------------------------ |:------- |
-| Two Azure Application Gateway certificates | They are TLS certificates emitted by Let's Encrypt for the public IP FQDNs and served by the Azure Application Gateway instances in each region. |
-| An AKS ingress controller certificate      | A self-signed wildcard cert for TLS on the cluster ingress controller. |
+| Certificate type | Purpose |
+|:- |:- |
+| Two Azure Application Gateway certificates | TLS certificates issued by Let's Encrypt for the public IP FQDNs and served by the Azure Application Gateway instances in each region. |
+| An AKS ingress controller certificate | A self-signed wildcard certificate for TLS on the cluster ingress controller. |
 
 ## Steps
 
@@ -25,14 +25,14 @@ These steps will result the certificates needed for Azure Application Gateway an
    ./certs/letsencrypt-pip-cert-generation.sh $(az deployment group show -g rg-enterprise-networking-spokes -n spoke-BU0001A0042-04 --query properties.outputs.appGatewayPublicIp.value -o tsv)
    ```
 
-   :bulb: EV certificates are mostly recommended for user-facing endpoints, which is not the case in this multiregion reference implementation. The Azure Application Gateways instances are going to be just the regional backend servers for a globally distributed load balancer (Azure Front Door). For more information on how these certificates are being generated, please refer to [Certificate Generation for an Azure Public IP with your DNS Prefix](https://github.com/mspnp/letsencrypt-pip-cert-generation).
+   :bulb: Extended validation (EV) certificates are mostly recommended for user-facing endpoints. This multiregion reference implementation doesn't generate certificates for user-facing endpoints. The certificates generated here are for communication between Azure Front Door and Azure Application Gateway. For more information on how these certificates are generated, please refer to [Certificate Generation for an Azure Public IP with your DNS Prefix](https://github.com/mspnp/letsencrypt-pip-cert-generation).
 
-1. Base64 encode the client-facing certificate.
+1. Base 64-encode the client-facing certificates.
 
-   :bulb: No matter if you used a certificate from your organization or you generated one from above, you'll need the certificate (as `.pfx`) to be Base64 encoded for proper storage in Key Vault later.
+   :bulb: Whether you use a certificate from your organization or you generated one in the preceding step, you'll need the certificate's PFX file to be base 64-encoded so that it can be stored in Azure Key Vault later in this process.
 
    ```bash
-   # get the Public IP subdomins
+   # get the public IP address subdomains
    APPGW_SUBDOMAIN_BU0001A0042_03=$(az deployment group show -g rg-enterprise-networking-spokes -n spoke-BU0001A0042-03 --query properties.outputs.subdomainName.value -o tsv)
    APPGW_SUBDOMAIN_BU0001A0042_04=$(az deployment group show -g rg-enterprise-networking-spokes -n spoke-BU0001A0042-04 --query properties.outputs.subdomainName.value -o tsv)
    echo APPGW_SUBDOMAIN_BU0001A0042_03: $APPGW_SUBDOMAIN_BU0001A0042_03
@@ -44,20 +44,20 @@ These steps will result the certificates needed for Azure Application Gateway an
    echo APP_GATEWAY_LISTENER_REGION2_CERTIFICATE_BASE64_AKS_MRB: $APP_GATEWAY_LISTENER_REGION2_CERTIFICATE_BASE64_AKS_MRB
    ```
 
-1. Generate the wildcard certificate for the AKS ingress controller.
+1. Generate a wildcard certificate for the AKS ingress controller.
 
-   > :book: Contoso Bicycle will also procure another TLS certificate, a standard cert, to be used with the AKS ingress controller. This one is not EV, as it will not be user facing. Finally the app team decides to use a wildcard certificate of `*.aks-ingress.contoso.com` for the ingress controller. As this is not an internet-facing endpoint; using a wildcard certificate is a valid option.
+   > :book: Contoso Bicycle will also procure a standard TLS certificate to be used with the AKS ingress controller. This certificate is not EV, because it won't be user-facing. Finally the app team decides to use a wildcard certificate with the wildcard `*.aks-ingress.contoso.com` for the ingress controller. Because this is not an internet-facing endpoint; using a wildcard certificate is a valid option that meets Contoso Bicycle's policies.
 
    ```bash
    openssl req -x509 -nodes -days 365 -newkey rsa:2048 -out traefik-ingress-internal-aks-ingress-contoso-com-tls.crt -keyout traefik-ingress-internal-aks-ingress-contoso-com-tls.key -subj "/CN=*.aks-ingress.contoso.com/O=Contoso Aks Ingress"
 
-   # Combined as PEM structure (required by Azure Application Gateway for backend pools)
+   # Combine into a PEM structure, which is required by Azure Application Gateway for backend pools
    cat traefik-ingress-internal-aks-ingress-contoso-com-tls.crt traefik-ingress-internal-aks-ingress-contoso-com-tls.key > traefik-ingress-internal-aks-ingress-contoso-com-tls.pem
    ```
 
-1. Base64 encode the AKS ingress controller certificate.
+1. Base 64-encode the AKS ingress controller certificate.
 
-   :bulb: No matter if you used a certificate from your organization or you generated one from above, you'll need the public certificate (as `.crt` or `.cer`) to be Base64 encoded for proper storage in Key Vault later.
+   :bulb: Whether you use a certificate from your organization or you generated one from above, you'll need the public certificate's `.crt` or `.cer` file to be base 64-encoded so that it can be stored in Azure Key Vault later in this process.
 
    ```bash
    export AKS_INGRESS_CONTROLLER_CERTIFICATE_BASE64_AKS_MRB=$(cat traefik-ingress-internal-aks-ingress-contoso-com-tls.crt | base64 | tr -d '\n')

@@ -1,10 +1,10 @@
-# Configure AKS Ingress Controller with Azure Key Vault integration
+# Configure AKS ingress controller with Azure Key Vault integration
 
-Previously you have configured [workload prerequisites](./07-workload-prerequisites.md). These steps configure Traefik, the AKS ingress solution used in this reference implementation, so that it can securely expose the web app to your Azure Application Gateway.
+Previously you have configured [the workload's prerequisites](./07-workload-prerequisites.md). The following steps configure Traefik, the AKS ingress solution used in this reference implementation, so that it can securely expose the web app to your Azure Application Gateway.
 
 ## Steps
 
-1. Get the AKS ingress controller managed identity details.
+1. Retrieve the details of the AKS ingress controller's managed identity.
 
    ```bash
    INGRESS_CONTROLLER_WORKLOAD_IDENTITY_CLIENT_ID_BU0001A0042_03=$(az deployment group show -g rg-bu0001a0042-03 -n cluster-stamp --query properties.outputs.aksIngressControllerPodManagedIdentityClientId.value -o tsv)
@@ -13,9 +13,9 @@ Previously you have configured [workload prerequisites](./07-workload-prerequisi
 
 1. Create the ingress controller's Secret Provider Class resource.
 
-   > The ingress controller will be exposing the wildcard TLS certificate you created in a prior step. It uses the Azure Key Vault CSI Provider to mount the certificate which is managed and stored in Azure Key Vault. Once mounted, Traefik can use it.
-   >
-   > Create a `SecretProviderClass` resource with your federated identity and Azure Key Vault parameters for the [Azure Key Vault Provider for Secrets Store CSI Driver](https://github.com/Azure/secrets-store-csi-driver-provider-azure).
+   The ingress controller exposes the wildcard TLS certificate you created in a prior step. It uses the Azure Key Vault CSI Provider to mount the certificate, which is managed and stored in Azure Key Vault. By mounting the certificate, Traefik can use it.
+   
+   The `SecretProviderClass` resource is created with reference to your federated identity and the Azure Key Vault parameters for the [Azure Key Vault Provider for Secrets Store CSI Driver](https://github.com/Azure/secrets-store-csi-driver-provider-azure).
 
    ```bash
    KEYVAULT_NAME_BU0001A0042_03=$(az deployment group show -g rg-bu0001a0042-03 -n cluster-stamp  --query properties.outputs.keyVaultName.value -o tsv)
@@ -50,7 +50,7 @@ Previously you have configured [workload prerequisites](./07-workload-prerequisi
 
 1. Install the Traefik ingress controller.
 
-   > Install the Traefik Ingress Controller; it will use the mounted TLS certificate provided by the CSI driver, which is the in-cluster secret management solution. Before going to production, we ensure the image reference comes from your Azure Container Registry by running the sed command that updates the `image:` value to reference your container registry instead of the default public container registry.
+   Traefik will use the TLS certificate that was mounted by the CSI driver. Before going to production, we ensure the image reference comes from your Azure Container Registry by running the sed command that updates the `image:` value to reference your container registry instead of the default public container registry.
 
    ```bash
    sed -i -e "s/docker.io/${ACR_NAME_AKS_MRB}.azurecr.io/" workload/traefik-region1.yaml
@@ -59,20 +59,20 @@ Previously you have configured [workload prerequisites](./07-workload-prerequisi
 
 1. Wait for Traefik to be ready.
 
-   > During Traefik's pod creation process, Azure Key Vault will be accessed to get the required certs needed for pod volume mount (CSI). This sometimes takes a bit of time, but will eventually succeed if properly configured.
+   During Traefik's pod creation process, the CSI driver communicates with Azure Key Vault to get the certificates needed for pod volume mount. This can take some time, but will eventually succeed if properly configured.
 
    ```bash
    kubectl wait -n a0042 --for=condition=ready pod --selector=app.kubernetes.io/name=traefik-ingress-ilb --timeout=90s --context $AKS_CLUSTER_NAME_BU0001A0042_03_AKS_MRB
    ```
 
-1. Contextualize the steps above for your second AKS cluster to install the ingress controller.
+1. Repeat the steps to install the ingress controller on your second AKS cluster, replacing the parameters that are different between the two clusters.
 
    ```bash
-   # Get the AKS Ingress Controller Managed Identity details.
+   # Get the AKS ingress controller managed identity details.
    INGRESS_CONTROLLER_WORKLOAD_IDENTITY_CLIENT_ID_BU0001A0042_04=$(az deployment group show -g rg-bu0001a0042-04 -n cluster-stamp --query properties.outputs.aksIngressControllerPodManagedIdentityClientId.value -o tsv)
    echo $INGRESS_CONTROLLER_WORKLOAD_IDENTITY_CLIENT_ID_BU0001A0042_04
 
-   # Create the Traefik's Secret Provider Class resource.
+   # Create the Traefik Secret Provider Class resource.
    KEYVAULT_NAME_BU0001A0042_04=$(az deployment group show -g rg-bu0001a0042-04 -n cluster-stamp  --query properties.outputs.keyVaultName.value -o tsv)
    echo KEYVAULT_NAME_BU0001A0042_04: $KEYVAULT_NAME_BU0001A0042_04
 
@@ -112,4 +112,4 @@ Previously you have configured [workload prerequisites](./07-workload-prerequisi
 
 ### Next step
 
-:arrow_forward: [Deploy the Workload](./09-workload.md)
+:arrow_forward: [Deploy the workload](./09-workload.md)
