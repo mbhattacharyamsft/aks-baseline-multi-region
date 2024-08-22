@@ -21,7 +21,7 @@
       "value": "<tenant-id-with-user-admin-permissions>"
     },
     "clusterInternalLoadBalancerIpAddress": {
-      "value": "10.244.4.4"
+      "value": "10.244.4.10"
     },
     "logAnalyticsWorkspaceId": {
       "value": "<log-analytics-workspace-id>"

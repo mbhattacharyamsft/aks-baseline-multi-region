@@ -48,12 +48,21 @@ Previously you have configured [the workload's prerequisites](./07-workload-prer
    EOF
    ```
 
+1. Retrieve the fixed IPv4 address for the AKS internal load balancer ingress controller's service.
+
+   ```bash
+   INGRESS_CONTROLLER_SERVICE_ILB_IPV4_ADDRESS_BU0001A0042_03=$(az deployment group show -g rg-bu0001a0042-03 -n cluster-stamp --query properties.outputs.ilbIpAddress.value -o tsv)
+   echo INGRESS_CONTROLLER_SERVICE_ILB_IPV4_ADDRESS_BU0001A0042_03: $INGRESS_CONTROLLER_SERVICE_ILB_IPV4_ADDRESS_BU0001A0042_03
+   ```
+
 1. Install the Traefik ingress controller.
 
    Traefik will use the TLS certificate that was mounted by the CSI driver. Before going to production, we ensure the image reference comes from your Azure Container Registry by running the sed command that updates the `image:` value to reference your container registry instead of the default public container registry.
 
    ```bash
-   sed -i -e "s/docker.io/${ACR_NAME_AKS_MRB}.azurecr.io/" workload/traefik-region1.yaml
+   sed -i "s#<ingress-controller-ilb-ipv4-address>#${INGRESS_CONTROLLER_SERVICE_ILB_IPV4_ADDRESS_BU0001A0042_03}#g" workload/traefik-region1.yaml && \
+     sed -i -e "s/docker.io/${ACR_NAME_AKS_MRB}.azurecr.io/" workload/traefik-region1.yaml
+
    kubectl apply -f ./workload/traefik-region1.yaml --context $AKS_CLUSTER_NAME_BU0001A0042_03_AKS_MRB
    ```
 
@@ -102,8 +111,13 @@ Previously you have configured [the workload's prerequisites](./07-workload-prer
        tenantId: $TENANTID_AZURERBAC_AKS_MRB
    EOF
 
+   INGRESS_CONTROLLER_SERVICE_ILB_IPV4_ADDRESS_BU0001A0042_04=$(az deployment group show -g rg-bu0001a0042-04 -n cluster-stamp --query properties.outputs.ilbIpAddress.value -o tsv)
+   echo INGRESS_CONTROLLER_SERVICE_ILB_IPV4_ADDRESS_BU0001A0042_04: $INGRESS_CONTROLLER_SERVICE_ILB_IPV4_ADDRESS_BU0001A0042_04
+
    # Install the Traefik Ingress Controller in the second region.
-   sed -i -e "s/docker.io/${ACR_NAME_AKS_MRB}.azurecr.io/" workload/traefik-region2.yaml
+   sed -i "s#<ingress-controller-ilb-ipv4-address>#${INGRESS_CONTROLLER_SERVICE_ILB_IPV4_ADDRESS_BU0001A0042_04}#g" workload/traefik-region2.yaml && \
+     sed -i -e "s/docker.io/${ACR_NAME_AKS_MRB}.azurecr.io/" workload/traefik-region2.yaml
+
    kubectl apply -f ./workload/traefik-region2.yaml --context $AKS_CLUSTER_NAME_BU0001A0042_04_AKS_MRB
 
    # Wait for Traefik to be ready.

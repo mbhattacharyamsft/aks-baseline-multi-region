@@ -14,7 +14,8 @@ data:
         addEntryPointsLabels = true
         addServicesLabels = true
     [accessLog]
-      format = "json"
+      filePath = "/data/access.log"
+      bufferingSize = 100
     [global]
       # prevent Traefik from checking newer versions in production
       checknewversion = false
@@ -34,11 +35,12 @@ data:
         filename = "/config/traefik.toml"
         watch = true
       [providers.kubernetesCRD]
+        # Traefik kubernetes CRD provider gives support to implement load balancing strategies such us Weithed Round Robing (wrr). https://doc.traefik.io/traefik/routing/services/#weighted-round-robin-service
         namespaces = ["a0042"]
     # Enable gzip compression
     [http.middlewares]
       [http.middlewares.gzip-compress.compress]
-      [http.middlewares.app-gateway-snet.ipWhiteList]
+      [http.middlewares.app-gateway-snet.ipAllowList]
         sourceRange = ["10.244.5.0/24"]
     [entryPoints]
       [entryPoints.metrics]
@@ -84,16 +86,16 @@ metadata:
     service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "snet-clusteringressservices"
 spec:
   type: LoadBalancer
-  loadBalancerIP: 10.244.4.4
+  loadBalancerIP: <ingress-controller-ilb-ipv4-address>
   externalTrafficPolicy: Local
   selector:
     app.kubernetes.io/name: traefik-ingress-ilb
     app.kubernetes.io/instance: traefik-ingress-ilb
   ports:
   - port: 443
-    name: "https"
-    targetPort: "websecure"
-    protocol: "TCP"
+    name: websecure
+    targetPort: 8443
+    protocol: TCP
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -123,7 +125,6 @@ spec:
       labels:
         app.kubernetes.io/name: traefik-ingress-ilb
         app.kubernetes.io/instance: traefik-ingress-ilb
-        aadpodidbinding: podmi-ingress-controller
     spec:
       hostNetwork: false
       serviceAccountName: traefik-ingress-controller
@@ -142,10 +143,10 @@ spec:
         # PRODUCTION READINESS CHANGE REQUIRED
         # This image should be sourced from a non-public container registry, such as the
         # one deployed along side of this reference implementation.
-        # az acr import --source docker.io/library/traefik:v2.11 -n <your-acr-instance-name>
+        # az acr import --source docker.io/library/traefik:v3.1 -n <your-acr-instance-name>
         # and then set this to
-        # image: <your-acr-instance-name>.azurecr.io/library/traefik:v2.11
-      - image: docker.io/library/traefik:v2.11
+        # image: <your-acr-instance-name>.azurecr.io/library/traefik:v3.1
+      - image: docker.io/library/traefik:v3.1
         name: traefik-ingress-controller
         resources:
           requests:

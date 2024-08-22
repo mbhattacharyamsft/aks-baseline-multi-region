@@ -1687,7 +1687,7 @@ resource agw 'Microsoft.Network/applicationGateways@2024-01-01' = {
         properties: {
           backendAddresses: [
             {
-              fqdn: aksBackendDomainName
+              fqdn: 'bu0001a0042.${aksIngressDomainName}'
             }
           ]
         }
@@ -1850,3 +1850,4 @@ output aksClusterName string = clusterName
 output aksIngressControllerPodManagedIdentityClientId string = podmiIngressController.properties.clientId
 output keyVaultName string = kv.name
 output agwName string = agwName
+output ilbIpAddress string = pdzAksIngress::aks_ingress_contoso_com_orgAppId.properties.aRecords[0].ipv4Address
