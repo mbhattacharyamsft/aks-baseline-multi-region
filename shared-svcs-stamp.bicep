@@ -213,7 +213,7 @@ resource acrAzureDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-p
   }
 }
 
-@description('Saved query to detect failed pods.')
+/*@description('Saved query to detect failed pods.')
 resource PodFailedScheduledQuery 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
   name: 'PodFailedScheduledQuery'
   location: location
@@ -255,7 +255,7 @@ resource PodFailedScheduledQuery 'Microsoft.Insights/scheduledQueryRules@2023-03
       ]
     }
   }
-}
+}*/
 
 @description('Saved alert for any Azure Advisor notices.')
 resource AllAzureAdvisorAlert 'Microsoft.Insights/activityLogAlerts@2020-10-01' = {
